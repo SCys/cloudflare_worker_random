@@ -7,15 +7,13 @@ export async function handleRequest(req: Request): Promise<Response> {
 
 	// web-crypto cost cpu time
 	const uuidArray = await gen_random_uuid();
+	const jsRandomString = await gen_random_string();
 
-	let randomOutput = "";
-	let uuidOutput = "";
-	let body = "";
-
-	randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
+	let randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
 	randomOutput += `\n${randomArray.join("\n")}`;
-	uuidOutput = `cloudflare web-crypto:\n${uuidArray.join("\n")}`;
-	body = [randomOutput, uuidOutput, ""].join("\n\n");
+	const uuidOutput = `cloudflare web-crypto:\n${uuidArray.join("\n")}`;
+	const jsRandomStringOutput= `js random string:\b${jsRandomString.join("\b")}`
+	const body = [randomOutput, uuidOutput, jsRandomStringOutput, ""].join("\n\n");
 
 	const bodyDigest = await digestSHA256(body);
 
@@ -30,9 +28,8 @@ export async function handleRequest(req: Request): Promise<Response> {
 
 // from cloudflare web-crypto api
 // https://developers.cloudflare.com/workers/runtime-apis/web-crypto/
-async function gen_random_uuid(count = 2): Promise<string[]> {
+async function gen_random_uuid(count = 6): Promise<string[]> {
 	const array = [];
-
 	for (let i = 0; i < count; i++) array.push(await crypto.randomUUID());
 	return array;
 }
@@ -76,6 +73,19 @@ async function fetch_random_quota(): Promise<string> {
 
 // 	return [];
 // }
+
+// js random string with limit chars with JILoO0
+const characters = 'ABCDEFGHKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz123456789';
+function gen_random_string(size = 6): string[] {
+	return Array(size).map(() => {
+		let result = ' ';
+		const charactersLength = characters.length;
+		for (let i = 0; i < 12; i++) {
+			result += characters.charAt(Math.floor(Math.random() * charactersLength));
+		}
+		return result;
+	})
+}
 
 // encode sha256
 async function digestSHA256(txt: string) {
