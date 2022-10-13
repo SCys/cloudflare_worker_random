@@ -1,16 +1,21 @@
-const COUNT_MAX = 20000;
+const COUNT_MAX = 200000;
 
 export async function randomHandler(req: Request): Promise<Response> {
-    const tpPoint = Date.now();
-
     let count = 4;
+    let classifies = ['uuid', 'js'];
+    const data = [];
 
     try {
-        const { searchParams } = new URL(req.url)
-        count = Number.parseInt(searchParams.get('s') || '');
-        if (isNaN(count) || count > COUNT_MAX) {
-            count = 4;
-        }
+        const { searchParams: params } = new URL(req.url)
+
+        // s => count
+        count = Number.parseInt(params.get('s') || '');
+        if (isNaN(count) || count > COUNT_MAX) count = 4;
+
+        // limit classifies: uuid, js
+        const limit = params.get('c' || 'uuid,js')?.split(',')
+        if (limit) classifies = classifies.filter(i => limit.includes(i))
+        if (classifies.length == 0) classifies = ['uuid', 'js'];
     } catch (ex) {
         console.error(`[randomHandler]parse query failed:${ex}`)
     }
@@ -20,18 +25,15 @@ export async function randomHandler(req: Request): Promise<Response> {
     // const randomQuota = await fetch_random_quota();
 
     // web-crypto cost cpu time
-    const uuidArray = await gen_random_uuid(count);
+    if (classifies.includes('uuid'))
+        data.push(`cloudflare web-crypto:\n${(await gen_random_uuid(count)).join("\n")}`)
 
     // js random cost cpu time
-    const jsArray = await gen_random_string(count);
-
-    // let randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
-    // randomOutput += `\n${randomArray.join("\n")}`;
+    if (classifies.includes('js'))
+        data.push(`js random without (OojlIL0):\n${(await gen_random_string(count)).join("\n")}`);
 
     const body = [
-        // randomOutput,
-        `cloudflare web-crypto:\n${uuidArray.join("\n")}`,
-        `js random without (OojlIL0):\n${jsArray.join("\n")}`,
+        ...data,
         "code at https://github.com/SCys/cloudflare_worker_random",
         ""].join("\n\n");
 
@@ -40,7 +42,6 @@ export async function randomHandler(req: Request): Promise<Response> {
     return new Response(body, {
         headers: {
             "content-type": "text/plain",
-            "x-cost": `${Date.now() - tpPoint}ms`,
             "x-content-digest": `SHA-256=${bodyDigest}`,
         },
     });
