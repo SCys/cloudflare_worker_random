@@ -50,9 +50,9 @@ export async function randomHandler(req: Request): Promise<Response> {
 // from cloudflare web-crypto api
 // https://developers.cloudflare.com/workers/runtime-apis/web-crypto/
 async function gen_random_uuid(count = 6): Promise<string[]> {
-    const array = [];
-    for (let i = 0; i < count; i++) array.push(await crypto.randomUUID());
-    return array;
+    const output = new Set<string>();
+    for (; output.size < count;) output.add(await crypto.randomUUID());
+    return [...output];
 }
 
 // from random.org
@@ -95,14 +95,14 @@ async function gen_random_uuid(count = 6): Promise<string[]> {
 // js random string without OojlIL0
 const JS_SEED = "123456789ABCDEFGHKMNPQRSTUVWXTZabcdefghikmnpqrstuvwxyz"
 function gen_random_string(size = 6): string[] {
-    const output = []
-    for (let i = 0; i < size; i++)
-        output.push((() => {
+    const output = new Set<string>();
+    for (; output.size < size;)
+        output.add((() => {
             let a = ''
             for (; a.length < 12;) a += JS_SEED[(Math.random() * JS_SEED.length) | 0];
             return a;
         })())
-    return output;
+    return [...output];
 }
 
 // encode sha256
