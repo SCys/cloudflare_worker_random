@@ -1,15 +1,29 @@
-export async function randomHandler(_: Request): Promise<Response> {
+const COUNT_MAX = 20000;
+
+export async function randomHandler(req: Request): Promise<Response> {
     const tpPoint = Date.now();
+
+    let count = 4;
+
+    try {
+        const { searchParams } = new URL(req.url)
+        count = Number.parseInt(searchParams.get('s') || '');
+        if (isNaN(count) || count > COUNT_MAX) {
+            count = 4;
+        }
+    } catch (ex) {
+        console.error(`[randomHandler]parse query failed:${ex}`)
+    }
 
     // random.org only cost network time
     // const randomArray: string[] = []; //await fetch_random();
     // const randomQuota = await fetch_random_quota();
 
     // web-crypto cost cpu time
-    const uuidArray = await gen_random_uuid();
+    const uuidArray = await gen_random_uuid(count);
 
     // js random cost cpu time
-    const jsArray = await gen_random_string();
+    const jsArray = await gen_random_string(count);
 
     // let randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
     // randomOutput += `\n${randomArray.join("\n")}`;
@@ -41,30 +55,27 @@ async function gen_random_uuid(count = 6): Promise<string[]> {
 }
 
 // from random.org
-const RANDOM_LENGTH = 12;
-const RANDOM_COUNT = 2;
-async function fetch_random(): Promise<string[]> {
-    try {
-        const url = `https://www.random.org/strings/?num=${RANDOM_COUNT}&len=${RANDOM_LENGTH}&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new`;
-
-        const resp = await fetch(url);
-        const text = await resp.text();
-
-        return text
-            .trim()
-            .split("\n")
-            .map((i) => i.trim());
-    } catch (e) {
-        console.error(`[fetch_random]with exception ${e}`);
-    }
-
-    return [];
-}
-async function fetch_random_quota(): Promise<string> {
-    // https://www.random.org/quota/
-    const resp = await fetch("https://www.random.org/quota/?format=plain");
-    return await resp.text();
-}
+// const RANDOM_LENGTH = 12;
+// const RANDOM_COUNT = 2;
+// async function fetch_random(): Promise<string[]> {
+//     try {
+//         const url = `https://www.random.org/strings/?num=${RANDOM_COUNT}&len=${RANDOM_LENGTH}&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new`;
+//         const resp = await fetch(url);
+//         const text = await resp.text();
+//         return text
+//             .trim()
+//             .split("\n")
+//             .map((i) => i.trim());
+//     } catch (e) {
+//         console.error(`[fetch_random]with exception ${e}`);
+//     }
+//     return [];
+// }
+// async function fetch_random_quota(): Promise<string> {
+//     // https://www.random.org/quota/
+//     const resp = await fetch("https://www.random.org/quota/?format=plain");
+//     return await resp.text();
+// }
 
 // // from xid-js https://github.com/xaviiic/xid-js/blob/master/lib/xid.js
 // const XID_MACHINE_ID = "abc";
