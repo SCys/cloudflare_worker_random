@@ -8,24 +8,14 @@ export async function handleRequest(req: Request): Promise<Response> {
 	// web-crypto cost cpu time
 	const uuidArray = await gen_random_uuid();
 
-	// output, spec on curl
-	const userAgent = req.headers.get("user-agent");
 	let randomOutput = "";
 	let uuidOutput = "";
 	let body = "";
 
-	if (userAgent?.toLowerCase().includes("curl")) {
-		randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
-		randomOutput += `\n${randomArray.join("\n")}`;
-		uuidOutput = `cloudflare web-crypto:\n${uuidArray.join("\n")}`;
-		body = [randomOutput, uuidOutput, ""].join("\n\n");
-	} else {
-		randomOutput = `random.org: ${randomArray} (quota ${randomQuota.trim()}/1000,000 bits)`;
-		uuidOutput = `cloudflare web-crypto uuid4: ${uuidArray}`;
-		body = [randomOutput, uuidOutput, ""].join("\n");
-	}
-
-	// output
+	randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
+	randomOutput += `\n${randomArray.join("\n")}`;
+	uuidOutput = `cloudflare web-crypto:\n${uuidArray.join("\n")}`;
+	body = [randomOutput, uuidOutput, ""].join("\n\n");
 
 	const bodyDigest = await digestSHA256(body);
 
