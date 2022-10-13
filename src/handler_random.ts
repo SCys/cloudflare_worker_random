@@ -2,8 +2,8 @@ export async function randomHandler(_: Request): Promise<Response> {
     const tpPoint = Date.now();
 
     // random.org only cost network time
-    const randomArray = await fetch_random();
-    const randomQuota = await fetch_random_quota();
+    // const randomArray: string[] = []; //await fetch_random();
+    // const randomQuota = await fetch_random_quota();
 
     // web-crypto cost cpu time
     const uuidArray = await gen_random_uuid();
@@ -11,11 +11,11 @@ export async function randomHandler(_: Request): Promise<Response> {
     // js random cost cpu time
     const jsArray = await gen_random_string();
 
-    let randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
-    randomOutput += `\n${randomArray.join("\n")}`;
+    // let randomOutput = `random.org:(quota ${randomQuota.trim()}/1000,000 bits)`;
+    // randomOutput += `\n${randomArray.join("\n")}`;
 
     const body = [
-        randomOutput,
+        // randomOutput,
         `cloudflare web-crypto:\n${uuidArray.join("\n")}`,
         `js random without (OojlIL0):\n${jsArray.join("\n")}`,
         "code at https://github.com/SCys/cloudflare_worker_random",
