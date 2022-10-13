@@ -18,6 +18,7 @@ export async function randomHandler(_: Request): Promise<Response> {
         randomOutput,
         `cloudflare web-crypto:\n${uuidArray.join("\n")}`,
         `js random without (OojlIL0):\n${jsArray.join("\n")}`,
+        "code at https://github.com/SCys/cloudflare_worker_random"
         ""].join("\n\n");
 
     const bodyDigest = await digestSHA256(body);
