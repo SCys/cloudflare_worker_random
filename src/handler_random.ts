@@ -86,7 +86,7 @@ function gen_random_string(size = 6): string[] {
     for (let i = 0; i < size; i++)
         output.push((() => {
             let a = ''
-            for (; a.length < 12;) a += JS_SEED[(Math.random() * 55) | 0];
+            for (; a.length < 12;) a += JS_SEED[(Math.random() * JS_SEED.length) | 0];
             return a;
         })())
     return output;
