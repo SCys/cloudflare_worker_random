@@ -1,58 +1,104 @@
 const COUNT_MAX = 200000;
+const DEFAULT_LOOP_COUNT = 4;
+
+export function ErrorResponse(err: Error) {
+	const raw = err.stack;
+
+	return new Response("OOP Dump :-( ...<br />" + raw, {
+		status: 200,
+		headers: {
+			"content-type": "text/plain"
+		}
+	});
+}
 
 export async function randomHandler(req: Request): Promise<Response> {
-    let count = 4;
-    let classifies = ['uuid', 'js'];
-    const data = [];
+	let count = DEFAULT_LOOP_COUNT;
+	let classifies = ["uuid", "js"];
+	const data = [];
 
-    try {
-        const { searchParams: params } = new URL(req.url)
+	try {
+		// const { searchParams: params } = new URL(req.url)
+		const url = new URL(req.url);
+		const params = url.searchParams;
+		const pathname = url.pathname;
 
-        // s => count
-        count = Number.parseInt(params.get('s') || '');
-        if (isNaN(count) || count > COUNT_MAX) count = 4;
+		// s => count
+		count = Number.parseInt(params.get("s") || "");
+		if (isNaN(count) || count > COUNT_MAX) count = DEFAULT_LOOP_COUNT;
 
-        // limit classifies: uuid, js
-        const limit = params.get('c' || 'uuid,js')?.split(',')
-        if (limit) classifies = classifies.filter(i => limit.includes(i))
-        if (classifies.length == 0) classifies = ['uuid', 'js'];
-    } catch (ex) {
-        console.error(`[randomHandler]parse query failed:${ex}`)
-    }
+		switch (pathname) {
+			case "/random/id":
+				classifies = ["uuid"];
+				break;
 
-    // random.org only cost network time
-    // const randomArray: string[] = []; //await fetch_random();
-    // const randomQuota = await fetch_random_quota();
+			case "/random/js":
+				classifies = ["js"];
+				break;
 
-    // web-crypto cost cpu time
-    if (classifies.includes('uuid'))
-        data.push(`cloudflare web-crypto:\n${(await gen_random_uuid(count)).join("\n")}`)
+			default:
+				classifies = ["uuid", "js"];
+				break;
+		}
+	} catch (ex) {
+		console.error(`[randomHandler]parse query failed:${ex}`);
+		return ErrorResponse(ex as Error);
+	}
 
-    // js random cost cpu time
-    if (classifies.includes('js'))
-        data.push(`js random without (OojlIL0):\n${(await gen_random_string(count)).join("\n")}`);
+	// random.org only cost network time
+	// const randomArray: string[] = []; //await fetch_random();
+	// const randomQuota = await fetch_random_quota();
 
-    const body = [
-        ...data,
-        "code at https://github.com/SCys/cloudflare_worker_random",
-        ""].join("\n\n");
+	let body = "";
 
-    const bodyDigest = await digestSHA256(body);
+	// multi classifies
+	if (classifies.length > 1) {
+		const data = [];
 
-    return new Response(body, {
-        headers: {
-            "content-type": "text/plain",
-            "x-content-digest": `SHA-256=${bodyDigest}`,
-        },
-    });
+		// web-crypto cost cpu time
+		if (classifies.includes("uuid"))
+			data.push(
+				`cloudflare web-crypto:\n${(await gen_random_uuid(count)).join("\n")}`
+			);
+
+		// js random cost cpu time
+		if (classifies.includes("js"))
+			data.push(
+				`js random without (OojlIL0):\n${(await gen_random_string(count)).join(
+					"\n"
+				)}`
+			);
+
+		body = [
+			...data,
+			"code at https://github.com/SCys/cloudflare_worker_random",
+			""
+		].join("\n\n");
+	} else {
+		// web-crypto cost cpu time
+		if (classifies.includes("uuid"))
+			body = (await gen_random_uuid(count)).join("\n");
+
+		// js random cost cpu time
+		if (classifies.includes("js"))
+			body = (await gen_random_string(count)).join("\n");
+	}
+
+	const bodyDigest = await digestSHA256(body);
+	return new Response(body, {
+		headers: {
+			"content-type": "text/plain",
+			"x-content-digest": `SHA-256=${bodyDigest}`
+		}
+	});
 }
 
 // from cloudflare web-crypto api
 // https://developers.cloudflare.com/workers/runtime-apis/web-crypto/
 async function gen_random_uuid(count = 6): Promise<string[]> {
-    const output = new Set<string>();
-    for (; output.size < count;) output.add(await crypto.randomUUID());
-    return [...output];
+	const output = new Set<string>();
+	for (; output.size < count; ) output.add(await crypto.randomUUID());
+	return [...output];
 }
 
 // from random.org
@@ -93,22 +139,25 @@ async function gen_random_uuid(count = 6): Promise<string[]> {
 // }
 
 // js random string without OojlIL0
-const JS_SEED = "123456789ABCDEFGHKMNPQRSTUVWXTZabcdefghikmnpqrstuvwxyz"
+const JS_SEED = "123456789ABCDEFGHKMNPQRSTUVWXTZabcdefghikmnpqrstuvwxyz";
 function gen_random_string(size = 6): string[] {
-    const output = new Set<string>();
-    for (; output.size < size;)
-        output.add((() => {
-            let a = ''
-            for (; a.length < 12;) a += JS_SEED[(Math.random() * JS_SEED.length) | 0];
-            return a;
-        })())
-    return [...output];
+	const output = new Set<string>();
+	for (; output.size < size; )
+		output.add(
+			(() => {
+				let a = "";
+				for (; a.length < 12; )
+					a += JS_SEED[(Math.random() * JS_SEED.length) | 0];
+				return a;
+			})()
+		);
+	return [...output];
 }
 
 // encode sha256
 async function digestSHA256(txt: string) {
-    const myText = new TextEncoder().encode(txt);
-    const myDigest = await crypto.subtle.digest({ name: "SHA-256" }, myText);
-    const hashArray = Array.from(new Uint8Array(myDigest));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+	const myText = new TextEncoder().encode(txt);
+	const myDigest = await crypto.subtle.digest({ name: "SHA-256" }, myText);
+	const hashArray = Array.from(new Uint8Array(myDigest));
+	return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
