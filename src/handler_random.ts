@@ -71,7 +71,7 @@ export async function randomHandler(req: Request): Promise<Response> {
 
 		body = [
 			...data,
-			"code at https://github.com/SCys/cloudflare_worker_random",
+			"running on cloudflare worker(free limited) code at https://github.com/SCys/cloudflare_worker_random",
 			""
 		].join("\n\n");
 	} else {
