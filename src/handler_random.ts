@@ -1,5 +1,12 @@
-const COUNT_MAX = 200000;
+const COUNT_MAX = 20000;
 const DEFAULT_LOOP_COUNT = 4;
+
+// enum classifiers
+const enum CLASSIFIERS {
+	UUID = "uuid",
+	JS = "js",
+	RANDOM_ORG = "random.org",
+}
 
 export function ErrorResponse(err: Error) {
 	const raw = err.stack;
@@ -7,15 +14,18 @@ export function ErrorResponse(err: Error) {
 	return new Response("OOP Dump :-( ...<br />" + raw, {
 		status: 200,
 		headers: {
-			"content-type": "text/plain"
-		}
+			"content-type": "text/plain",
+		},
 	});
 }
 
 export async function randomHandler(req: Request): Promise<Response> {
 	let count = DEFAULT_LOOP_COUNT;
-	let classifies = ["uuid", "js"];
-	const data = [];
+	let classifies = [CLASSIFIERS.UUID, CLASSIFIERS.JS, CLASSIFIERS.RANDOM_ORG];
+
+	const headers: any = {
+		"content-type": "text/plain",
+	};
 
 	try {
 		// const { searchParams: params } = new URL(req.url)
@@ -28,69 +38,64 @@ export async function randomHandler(req: Request): Promise<Response> {
 		if (isNaN(count) || count > COUNT_MAX) count = DEFAULT_LOOP_COUNT;
 
 		switch (pathname) {
+			case "/random":
+				break;
 			case "/random/id":
-				classifies = ["uuid"];
+				classifies = [CLASSIFIERS.UUID];
 				break;
 
 			case "/random/js":
-				classifies = ["js"];
+				classifies = [CLASSIFIERS.JS];
+				break;
+
+			case "/random/org":
+				classifies = [CLASSIFIERS.RANDOM_ORG];
 				break;
 
 			default:
-				classifies = ["uuid", "js"];
-				break;
+				// no support classifier, return empty 204 response
+				return new Response("", { status: 204, headers });
 		}
 	} catch (ex) {
 		console.error(`[randomHandler]parse query failed:${ex}`);
 		return ErrorResponse(ex as Error);
 	}
 
-	// random.org only cost network time
-	// const randomArray: string[] = []; //await fetch_random();
-	// const randomQuota = await fetch_random_quota();
-
 	let body = "";
 
-	// multi classifies
-	if (classifies.length > 1) {
-		const data = [];
+	const data = [];
 
-		// web-crypto cost cpu time
-		if (classifies.includes("uuid"))
-			data.push(
-				`cloudflare web-crypto:\n${(await gen_random_uuid(count)).join("\n")}`
-			);
-
-		// js random cost cpu time
-		if (classifies.includes("js"))
-			data.push(
-				`js random without (OojlIL0):\n${(await gen_random_string(count)).join(
-					"\n"
-				)}`
-			);
-
-		body = [
-			...data,
-			"running on cloudflare worker(free limited) code at https://github.com/SCys/cloudflare_worker_random",
-			""
-		].join("\n\n");
-	} else {
-		// web-crypto cost cpu time
-		if (classifies.includes("uuid"))
-			body = (await gen_random_uuid(count)).join("\n");
-
-		// js random cost cpu time
-		if (classifies.includes("js"))
-			body = (await gen_random_string(count)).join("\n");
+	// web-crypto cost cpu time
+	if (classifies.includes(CLASSIFIERS.UUID)) {
+		data.push("web crypto random UUID:");
+		data.push((await gen_random_uuid(count)).join("\n"));
 	}
 
-	const bodyDigest = await digestSHA256(body);
-	return new Response(body, {
-		headers: {
-			"content-type": "text/plain",
-			"x-content-digest": `SHA-256=${bodyDigest}`
+	// js random cost cpu time
+	if (classifies.includes(CLASSIFIERS.JS)) {
+		data.push('random string without "OojlIL0":');
+		data.push((await gen_random_string(count)).join("\n"));
+	}
+
+	// random.org
+	if (classifies.includes(CLASSIFIERS.RANDOM_ORG)) {
+		const randomQuota = await fetch_random_quota();
+		if (randomQuota > 2) {
+			data.push(`random.org quota ${randomQuota}/1000000 words:`);
+			data.push((await fetch_random()).join("\n"));
+		} else {
+			data.push(`random.org quota 0/1000000 words, skip`);
 		}
-	});
+	}
+
+	body = [
+		...data,
+		"running on cloudflare worker(free limited) code at https://github.com/SCys/cloudflare_worker_random",
+	].join("\n\n");
+
+	const bodyDigest = await digestSHA256(body);
+	headers["x-content-digest"] = `SHA-256=${bodyDigest}`;
+	return new Response(body, { headers });
 }
 
 // from cloudflare web-crypto api
@@ -102,27 +107,43 @@ async function gen_random_uuid(count = 6): Promise<string[]> {
 }
 
 // from random.org
-// const RANDOM_LENGTH = 12;
-// const RANDOM_COUNT = 2;
-// async function fetch_random(): Promise<string[]> {
-//     try {
-//         const url = `https://www.random.org/strings/?num=${RANDOM_COUNT}&len=${RANDOM_LENGTH}&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new`;
-//         const resp = await fetch(url);
-//         const text = await resp.text();
-//         return text
-//             .trim()
-//             .split("\n")
-//             .map((i) => i.trim());
-//     } catch (e) {
-//         console.error(`[fetch_random]with exception ${e}`);
-//     }
-//     return [];
-// }
-// async function fetch_random_quota(): Promise<string> {
-//     // https://www.random.org/quota/
-//     const resp = await fetch("https://www.random.org/quota/?format=plain");
-//     return await resp.text();
-// }
+const RANDOM_LENGTH = 32;
+const RANDOM_COUNT = 2;
+async function fetch_random(): Promise<string[]> {
+	// timer
+	const timer = new Date();
+
+	try {
+		const url = `https://www.random.org/strings/?num=${RANDOM_COUNT}&len=${RANDOM_LENGTH}&digits=on&upperalpha=on&loweralpha=on&unique=on&format=plain&rnd=new`;
+		const resp = await fetch(url);
+		const text = await resp.text();
+		return text
+			.trim()
+			.split("\n")
+			.map((i) => i.trim());
+	} catch (e) {
+		console.error(`[fetch_random]with exception ${e}`);
+	} finally {
+		console.log(
+			`[fetch_random]fetch ${RANDOM_COUNT} random string with length ${RANDOM_LENGTH} cost ${(
+				new Date().getTime() - timer.getTime()
+			).toFixed(2)}ms`
+		);
+	}
+	return [];
+}
+async function fetch_random_quota(): Promise<number> {
+	try {
+		// https://www.random.org/quota/
+		const resp = await fetch("https://www.random.org/quota/?format=plain");
+		// convert string to number
+		return Number.parseInt(await resp.text()); // will be NaN
+	} catch (e) {
+		console.error(`[fetch_random_quota]with exception ${e}`);
+	}
+
+	return 0;
+}
 
 // // from xid-js https://github.com/xaviiic/xid-js/blob/master/lib/xid.js
 // const XID_MACHINE_ID = "abc";
